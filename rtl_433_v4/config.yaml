@@ -1,0 +1,29 @@
+name: rtl_433 v4
+version: "1.0.0"
+slug: rtl_433_v4
+description: rtl_433 built with the rtl-sdr-blog librtlsdr fork for RTL-SDR Blog v4 dongle support
+url: https://github.com/garysb/rtl_433-v4-hass-addons
+arch:
+  - aarch64
+init: false
+hassio_api: true
+boot: auto
+startup: application
+usb: true
+udev: true
+host_dbus: true
+devices:
+  - /dev/bus/usb
+privileged:
+  - SYS_ADMIN
+services:
+  - mqtt:need
+map:
+  - share:rw
+  - config:rw
+options:
+  rtl_433_conf_file: ""
+  retain: true
+schema:
+  rtl_433_conf_file: str?
+  retain: bool
