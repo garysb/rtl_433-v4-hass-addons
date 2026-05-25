@@ -46,9 +46,8 @@ RUN git clone --depth 1 --branch ${RTLSDRBLOG_REF} \
     # We're doing VHF/UHF reception only, direct sampling is never needed.
     echo "=== Showing the buggy line BEFORE patch: ===" && \
     grep -n "direct_sampling = (freq" src/librtlsdr.c && \
-    echo "=== Applying surgical sed patch to line 904 ===" && \
-    sed -i '/dev->direct_sampling = (freq < 24000000/c\
-\t\tdev->direct_sampling = 0; /* HA-addon-patch: never auto-enable direct sampling */' src/librtlsdr.c && \
+    echo "=== Applying surgical sed patch (busybox-safe: s command, literal spaces) ===" && \
+    sed -i 's|^.*dev->direct_sampling = (freq < 24000000.*$|        dev->direct_sampling = 0; /* HA-addon-patch: never auto-enable direct sampling */|' src/librtlsdr.c && \
     echo "=== Showing the patched line AFTER ===" && \
     sed -n '903,906p' src/librtlsdr.c && \
     echo "=== Sanity-check: no more lines should match the original buggy pattern ===" && \
