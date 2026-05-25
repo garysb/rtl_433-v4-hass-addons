@@ -5,7 +5,7 @@ FROM ${BUILD_FROM}
 ARG RTLSDRBLOG_REF=master
 ARG RTL433_REF=master
 
-ENV LANG C.UTF-8
+ENV LANG=C.UTF-8
 
 # Build deps + runtime deps
 RUN apk add --no-cache \
@@ -44,9 +44,13 @@ RUN git clone --depth 1 --branch ${RTL433_REF} \
     make -j"$(nproc)" && \
     make install
 
-# Verify both binaries built and link against our new librtlsdr
+# Verify both binaries built and link against our new librtlsdr.
+# NOTE: Don't pipe rtl_433's output through `head` — pipefail + SIGPIPE makes the
+# whole RUN step fail when head closes its stdin. Redirect to a file instead.
 RUN ldd /usr/local/bin/rtl_433 | grep -q librtlsdr && \
-    /usr/local/bin/rtl_433 -V 2>&1 | head -1
+    /usr/local/bin/rtl_433 -V > /tmp/rtl433_version.txt 2>&1 && \
+    head -1 /tmp/rtl433_version.txt && \
+    rm /tmp/rtl433_version.txt
 
 # Clean up build artifacts to keep the image lean
 RUN rm -rf /tmp/rtl-sdr-blog /tmp/rtl_433 && \
