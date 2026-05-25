@@ -66,16 +66,27 @@ bashio::log.info "==========================================="
 bashio::log.info "rtl_test diagnostic complete"
 bashio::log.info "==========================================="
 
+# IMPORTANT: -D 0 explicitly disables direct sampling at rtl_433 startup. The v4
+# driver from rtl-sdr-blog defaults to direct-sampling-input-2 (for HF reception
+# via the v4's special antenna routing). Without -D 0, rtl_433 inherits that state,
+# tries to tune R820T (which doesn't apply in direct-sampling mode), gets a PLL
+# lock warning, the driver toggles direct sampling off, and the tuner ends up in
+# a deadlocked state where no samples flow. -D 0 forces normal quadrature mode
+# upfront so the R820T tuner can lock cleanly to 433.92 MHz.
+RTL433_TUNER_ARGS="-D 0"
+
 if [[ -n "${CONF_FILE}" && -f "${CONF_FILE}" ]]; then
     bashio::log.info "==> Running rtl_433 with conf file ${CONF_FILE}"
     exec /usr/local/bin/rtl_433 \
+        ${RTL433_TUNER_ARGS} \
         -c "${CONF_FILE}" \
         -F "${MQTT_OUTPUT}"
 else
     if [[ -n "${CONF_FILE}" ]]; then
         bashio::log.warning "Conf file ${CONF_FILE} does not exist. Falling back to defaults."
     fi
-    bashio::log.info "==> Running rtl_433 with defaults (433.92 MHz, all decoders enabled)"
+    bashio::log.info "==> Running rtl_433 with defaults (433.92 MHz, all decoders enabled), -D 0"
     exec /usr/local/bin/rtl_433 \
+        ${RTL433_TUNER_ARGS} \
         -F "${MQTT_OUTPUT}"
 fi
