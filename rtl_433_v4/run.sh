@@ -82,31 +82,30 @@ bashio::log.info "==========================================="
 # (We can't pass `-D 0` to rtl_433 directly because in rtl_433 v25.12+ the -D flag
 # was repurposed to control "input device run mode" — it now expects quit/restart/
 # pause/manual, not direct-sampling values.)
-bashio::log.info "==========================================="
-bashio::log.info "Pre-resetting direct sampling mode..."
-bashio::log.info "==========================================="
-# Read a small fixed number of samples so rtl_sdr self-terminates cleanly (vs
-# timeout/SIGKILL which leaves the dongle USB-wedged). 240k samples at 2.4Msps
-# is 100ms of capture — enough to confirm direct sampling is disabled and that
-# the tuner is on 433.92 MHz, then it cleanly closes the device.
-/usr/local/bin/rtl_sdr -D 0 -f 433920000 -s 2400000 -n 240000 /dev/null 2>&1 | head -5 | while read line; do
-    bashio::log.info "rtl_sdr: ${line}"
-done || true
-# Let the USB device fully settle after rtl_sdr's clean close
-sleep 1
-bashio::log.info "Reset complete; tuner should now be in quadrature mode at 433.92 MHz."
-bashio::log.info "==========================================="
+# Pre-reset removed in v1.0.7: it ran cleanly but the v4 driver re-enables
+# direct_sampling=2 every time the device is opened, so state from a previous
+# rtl_sdr session doesn't carry over to rtl_433's session.
+#
+# Workaround attempt: pass explicit -g (gain) and -f (frequency) to rtl_433. When
+# rtl_433 sets gain after the implicit direct-sampling disable, the librtlsdr
+# call chain should write to the R820T tuner's registers, which should force a
+# proper tuner re-init (the missing step in the rtl-sdr-blog driver's
+# set_direct_sampling(0) path). If this works, decoded events should follow.
+
+RTL433_EXTRA_ARGS="-g 49.6 -f 433920000"
 
 if [[ -n "${CONF_FILE}" && -f "${CONF_FILE}" ]]; then
     bashio::log.info "==> Running rtl_433 with conf file ${CONF_FILE}"
     exec /usr/local/bin/rtl_433 \
+        ${RTL433_EXTRA_ARGS} \
         -c "${CONF_FILE}" \
         -F "${MQTT_OUTPUT}"
 else
     if [[ -n "${CONF_FILE}" ]]; then
         bashio::log.warning "Conf file ${CONF_FILE} does not exist. Falling back to defaults."
     fi
-    bashio::log.info "==> Running rtl_433 with defaults (433.92 MHz, all decoders enabled)"
+    bashio::log.info "==> Running rtl_433 with defaults (433.92 MHz, all decoders, gain 49.6 dB)"
     exec /usr/local/bin/rtl_433 \
+        ${RTL433_EXTRA_ARGS} \
         -F "${MQTT_OUTPUT}"
 fi
