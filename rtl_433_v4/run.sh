@@ -71,12 +71,18 @@ bashio::log.info "Retain:      ${RETAIN}"
 # (We can't pass `-D 0` to rtl_433 directly because in rtl_433 v25.12+ the -D flag
 # was repurposed to control "input device run mode" — it now expects quit/restart/
 # pause/manual, not direct-sampling values.)
-# v1.0.15: classic mode (-Y classic -s 250k) for max protocol compatibility.
-# The new rtl_433 25.12 defaults run at 1 MSps which is excellent for OOK
-# protocols but skips some of the older decoders. -Y classic re-enables ALL
-# decoders including narrow-band 868 MHz ones (wireless M-Bus, KNX-RF, EU
-# weather stations) which are common in EU/CZ.
-RTL433_EXTRA_ARGS="-Y classic -s 250k -f 868300000"
+# v1.0.16: scan BOTH EU bands (868.3 + 433.92) with 60s hopping, force 250 kSps,
+# enable classic FSK detector for max protocol coverage.
+#
+# Argument-order gotcha (from rtl_433.c line 987): when -f is parsed for a freq
+# > 800 MHz, rtl_433 auto-bumps samp_rate to 1M IF samp_rate looks like the
+# default (250000). So -s MUST come AFTER -f, otherwise it gets silently
+# overwritten by the auto-bump. Order here: -f's first, then -s overrides.
+#
+# Two -f flags + -H 60 = hop between 868.3 and 433.92 every 60 seconds.
+# Catches sensors on either band — EU 868 (meters, alarms) AND 433 (weather,
+# older sensors).
+RTL433_EXTRA_ARGS="-f 868300000 -f 433920000 -H 60 -s 250000 -Y classic"
 
 if [[ -n "${CONF_FILE}" && -f "${CONF_FILE}" ]]; then
     bashio::log.info "==> Running rtl_433 with conf file ${CONF_FILE}"
@@ -88,7 +94,7 @@ else
     if [[ -n "${CONF_FILE}" ]]; then
         bashio::log.warning "Conf file ${CONF_FILE} does not exist. Falling back to defaults."
     fi
-    bashio::log.info "==> Running rtl_433 at 868.3 MHz, classic mode, 250 kSps, all decoders"
+    bashio::log.info "==> Running rtl_433 hopping 868.3/433.92 MHz (60s), classic mode, 250 kSps"
     exec /usr/local/bin/rtl_433 \
         ${RTL433_EXTRA_ARGS} \
         -F "${MQTT_OUTPUT}"
