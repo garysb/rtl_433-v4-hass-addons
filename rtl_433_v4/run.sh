@@ -71,10 +71,11 @@ bashio::log.info "Retain:      ${RETAIN}"
 # (We can't pass `-D 0` to rtl_433 directly because in rtl_433 v25.12+ the -D flag
 # was repurposed to control "input device run mode" — it now expects quit/restart/
 # pause/manual, not direct-sampling values.)
-# v1.0.8: the source patch to librtlsdr (see Dockerfile) eliminates the v4 auto-
-# direct-sampling probe, so we no longer need the -g/-f workaround. Removing it
-# also means we run with auto-gain (typically more sensitive than fixed 49.6 dB).
-RTL433_EXTRA_ARGS=""
+# v1.0.14: tune to 868.3 MHz — primary EU SRD/ISM band where utility meters,
+# alarm sensors, EU weather stations broadcast. Far more active than 433.92 MHz
+# in CZ/EU. (Use -f arg with the librtlsdr source patch in place; the previous
+# 433.92 default + auto-gain was hitting a quiet RF environment.)
+RTL433_EXTRA_ARGS="-f 868300000"
 
 if [[ -n "${CONF_FILE}" && -f "${CONF_FILE}" ]]; then
     bashio::log.info "==> Running rtl_433 with conf file ${CONF_FILE}"
@@ -86,7 +87,7 @@ else
     if [[ -n "${CONF_FILE}" ]]; then
         bashio::log.warning "Conf file ${CONF_FILE} does not exist. Falling back to defaults."
     fi
-    bashio::log.info "==> Running rtl_433 with defaults (433.92 MHz, all decoders, gain 49.6 dB)"
+    bashio::log.info "==> Running rtl_433 at 868.3 MHz (EU primary), all decoders"
     exec /usr/local/bin/rtl_433 \
         ${RTL433_EXTRA_ARGS} \
         -F "${MQTT_OUTPUT}"
