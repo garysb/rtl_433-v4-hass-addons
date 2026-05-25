@@ -82,17 +82,10 @@ bashio::log.info "==========================================="
 # (We can't pass `-D 0` to rtl_433 directly because in rtl_433 v25.12+ the -D flag
 # was repurposed to control "input device run mode" — it now expects quit/restart/
 # pause/manual, not direct-sampling values.)
-# Pre-reset removed in v1.0.7: it ran cleanly but the v4 driver re-enables
-# direct_sampling=2 every time the device is opened, so state from a previous
-# rtl_sdr session doesn't carry over to rtl_433's session.
-#
-# Workaround attempt: pass explicit -g (gain) and -f (frequency) to rtl_433. When
-# rtl_433 sets gain after the implicit direct-sampling disable, the librtlsdr
-# call chain should write to the R820T tuner's registers, which should force a
-# proper tuner re-init (the missing step in the rtl-sdr-blog driver's
-# set_direct_sampling(0) path). If this works, decoded events should follow.
-
-RTL433_EXTRA_ARGS="-g 49.6 -f 433920000"
+# v1.0.8: the source patch to librtlsdr (see Dockerfile) eliminates the v4 auto-
+# direct-sampling probe, so we no longer need the -g/-f workaround. Removing it
+# also means we run with auto-gain (typically more sensitive than fixed 49.6 dB).
+RTL433_EXTRA_ARGS=""
 
 if [[ -n "${CONF_FILE}" && -f "${CONF_FILE}" ]]; then
     bashio::log.info "==> Running rtl_433 with conf file ${CONF_FILE}"

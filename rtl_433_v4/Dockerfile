@@ -21,9 +21,26 @@ RUN apk add --no-cache \
 
 # 1. Build the rtl-sdr-blog fork of librtlsdr (the whole point of this addon).
 #    The fork adds support for the RTL-SDR Blog v4 dongle's tuner control.
+#
+#    IMPORTANT: We patch the source before building to neutralize the v4's
+#    automatic direct-sampling probe. By default, on v4 dongles librtlsdr
+#    calls rtlsdr_set_direct_sampling(dev, 2) during init to set up HF
+#    reception via the v4's special antenna routing. The trouble: the
+#    subsequent transition back to normal quadrature mode (when rtl_433
+#    asks for VHF/UHF) leaves the R820T tuner in a wedged state — PLL
+#    lock fails, no samples flow. Removing the auto-DS calls means the
+#    v4 stays in normal quadrature mode and the R820T tuner initializes
+#    cleanly for VHF/UHF reception.
 RUN git clone --depth 1 --branch ${RTLSDRBLOG_REF} \
         https://github.com/rtlsdrblog/rtl-sdr-blog.git /tmp/rtl-sdr-blog && \
     cd /tmp/rtl-sdr-blog && \
+    echo "=== Searching for direct_sampling-related lines in librtlsdr.c ===" && \
+    grep -n "direct_sampling" src/librtlsdr.c | head -40 || echo "(no matches)" && \
+    echo "=== Applying patch: comment out rtlsdr_set_direct_sampling(...,2) calls ===" && \
+    sed -i 's|rtlsdr_set_direct_sampling(dev, 2);|/* HA-addon: was rtlsdr_set_direct_sampling(dev, 2); */|g' src/librtlsdr.c && \
+    sed -i 's|rtlsdr_set_direct_sampling(devt, 2);|/* HA-addon: was rtlsdr_set_direct_sampling(devt, 2); */|g' src/librtlsdr.c && \
+    echo "=== After patch, lines containing rtlsdr_set_direct_sampling: ===" && \
+    grep -n "rtlsdr_set_direct_sampling" src/librtlsdr.c | head -20 || echo "(no matches)" && \
     mkdir build && cd build && \
     cmake .. \
         -DINSTALL_UDEV_RULES=ON \

@@ -1,5 +1,5 @@
 name: rtl_433 v4
-version: "1.0.7"
+version: "1.0.8"
 slug: rtl_433_v4
 description: rtl_433 built with the rtl-sdr-blog librtlsdr fork for RTL-SDR Blog v4 dongle support
 url: https://github.com/garysb/rtl_433-v4-hass-addons
