@@ -34,21 +34,29 @@ RUN apk add --no-cache \
 RUN git clone --depth 1 --branch ${RTLSDRBLOG_REF} \
         https://github.com/rtlsdrblog/rtl-sdr-blog.git /tmp/rtl-sdr-blog && \
     cd /tmp/rtl-sdr-blog && \
-    echo "=== Searching for code that might enable DS=2 (v4 auto-probe) ===" && \
-    (grep -n -E "direct_sampling|RTLSDR_BLOG|RTLSDR_v4|2838" src/librtlsdr.c | head -60 || true) && \
-    echo "" && \
-    echo "=== Showing context around _rtlsdr_set_direct_sampling function (lines 1207..1230) ===" && \
-    sed -n '1207,1230p' src/librtlsdr.c && \
-    echo "" && \
-    echo "=== Patching: inject 'on = 0' at the top of _rtlsdr_set_direct_sampling's body ===" && \
-    awk '\
-        /^int _rtlsdr_set_direct_sampling\(rtlsdr_dev_t \*dev, int on\)$/ { print; in_fn=1; next } \
-        in_fn==1 && /^{/ { print; print "\ton = 0;  /* HA-addon-patch: neutralize v4 auto-DS-probe */"; in_fn=0; next } \
-        { print } \
-    ' src/librtlsdr.c > /tmp/librtlsdr_patched.c && \
-    mv /tmp/librtlsdr_patched.c src/librtlsdr.c && \
-    echo "=== After patch, showing the function start: ===" && \
-    sed -n '1207,1215p' src/librtlsdr.c && \
+    # === ROOT CAUSE PATCH ===
+    # In rtlsdr_set_center_freq (around line 904), the v4-aware librtlsdr does:
+    #   dev->direct_sampling = (freq < 24000000 && tuner==R820T && !is_v4l) ? 2 : 0;
+    # This is meant for v4 dongles to auto-route HF (<24MHz) requests through
+    # direct-sampling input 2. But when rtl_433 sets the sample rate, that
+    # internally triggers set_center_freq with `dev->freq` still 0 (uninitialized).
+    # 0 < 24M → DS gets set to 2 → tuner->exit() puts R820T to sleep → next
+    # frequency set (433.92 MHz) hits "PLL not locked" → tuner doesn't recover.
+    # Patch: hardcode `dev->direct_sampling = 0` so the auto-routing never fires.
+    # We're doing VHF/UHF reception only, direct sampling is never needed.
+    echo "=== Showing the buggy line BEFORE patch: ===" && \
+    grep -n "direct_sampling = (freq" src/librtlsdr.c && \
+    echo "=== Applying surgical sed patch to line 904 ===" && \
+    sed -i '/dev->direct_sampling = (freq < 24000000/c\
+\t\tdev->direct_sampling = 0; /* HA-addon-patch: never auto-enable direct sampling */' src/librtlsdr.c && \
+    echo "=== Showing the patched line AFTER ===" && \
+    sed -n '903,906p' src/librtlsdr.c && \
+    echo "=== Sanity-check: no more lines should match the original buggy pattern ===" && \
+    if grep -q "direct_sampling = (freq" src/librtlsdr.c; then \
+        echo "PATCH FAILED — buggy line still present"; exit 1; \
+    else \
+        echo "OK — buggy line successfully replaced"; \
+    fi && \
     mkdir build && cd build && \
     cmake .. \
         -DINSTALL_UDEV_RULES=ON \
