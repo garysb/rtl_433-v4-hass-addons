@@ -83,10 +83,18 @@ bashio::log.info "==========================================="
 # was repurposed to control "input device run mode" — it now expects quit/restart/
 # pause/manual, not direct-sampling values.)
 bashio::log.info "==========================================="
-bashio::log.info "Pre-resetting direct sampling mode (1 sec)..."
+bashio::log.info "Pre-resetting direct sampling mode..."
 bashio::log.info "==========================================="
-timeout 1 /usr/local/bin/rtl_sdr -D 0 -f 433920000 -s 2400000 - > /dev/null 2>&1 || true
-bashio::log.info "Reset complete; tuner should now be in quadrature mode."
+# Read a small fixed number of samples so rtl_sdr self-terminates cleanly (vs
+# timeout/SIGKILL which leaves the dongle USB-wedged). 240k samples at 2.4Msps
+# is 100ms of capture — enough to confirm direct sampling is disabled and that
+# the tuner is on 433.92 MHz, then it cleanly closes the device.
+/usr/local/bin/rtl_sdr -D 0 -f 433920000 -s 2400000 -n 240000 /dev/null 2>&1 | head -5 | while read line; do
+    bashio::log.info "rtl_sdr: ${line}"
+done || true
+# Let the USB device fully settle after rtl_sdr's clean close
+sleep 1
+bashio::log.info "Reset complete; tuner should now be in quadrature mode at 433.92 MHz."
 bashio::log.info "==========================================="
 
 if [[ -n "${CONF_FILE}" && -f "${CONF_FILE}" ]]; then
