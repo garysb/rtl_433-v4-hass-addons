@@ -62,12 +62,14 @@ RUN git clone --depth 1 --branch ${RTL433_REF} \
     make install
 
 # Verify both binaries built and link against our new librtlsdr.
-# NOTE: Don't pipe rtl_433's output through `head` — pipefail + SIGPIPE makes the
-# whole RUN step fail when head closes its stdin. Redirect to a file instead.
-RUN ldd /usr/local/bin/rtl_433 | grep -q librtlsdr && \
-    /usr/local/bin/rtl_433 -V > /tmp/rtl433_version.txt 2>&1 && \
-    head -1 /tmp/rtl433_version.txt && \
-    rm /tmp/rtl433_version.txt
+# NOTE: `set +o pipefail` is critical — HA base images enable pipefail by default,
+# which makes ldd (or rtl_433 -V) exit 141 (SIGPIPE) when the consumer in the pipe
+# (e.g. grep -q, head) closes its stdin early. Disabling pipefail for this RUN
+# makes the verification robust regardless of which side of the pipe closes first.
+RUN set +o pipefail && \
+    ldd /usr/local/bin/rtl_433 | grep librtlsdr && \
+    /usr/local/bin/rtl_433 -V 2>&1 | head -1 && \
+    echo "Build verification OK"
 
 # Clean up build artifacts to keep the image lean
 RUN rm -rf /tmp/rtl-sdr-blog /tmp/rtl_433 && \
