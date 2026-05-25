@@ -50,6 +50,22 @@ bashio::log.info "MQTT broker: ${MQTT_HOST}:${MQTT_PORT} (user=${MQTT_USER})"
 bashio::log.info "Conf file:   ${CONF_FILE:-<none, using rtl_433 defaults>}"
 bashio::log.info "Retain:      ${RETAIN}"
 
+# === DIAGNOSTIC: rtl_test for 5 seconds before launching rtl_433 ===
+# Verifies that the dongle can produce raw samples at all, independent of rtl_433's
+# frequency-setting code. If `rtl_test` reports successful sample reading (typically
+# "Reading samples in async mode..." and per-second sample counts), the dongle hardware
+# and our librtlsdr-blog build are fine and any further problem is in rtl_433's tuner
+# init. If `rtl_test` errors with PLL lock or USB failures, the dongle is suspect.
+bashio::log.info "==========================================="
+bashio::log.info "Running rtl_test diagnostic for 5 seconds..."
+bashio::log.info "==========================================="
+timeout 5 /usr/local/bin/rtl_test -s 2400000 2>&1 | while read line; do
+    bashio::log.info "rtl_test: ${line}"
+done || true
+bashio::log.info "==========================================="
+bashio::log.info "rtl_test diagnostic complete"
+bashio::log.info "==========================================="
+
 if [[ -n "${CONF_FILE}" && -f "${CONF_FILE}" ]]; then
     bashio::log.info "==> Running rtl_433 with conf file ${CONF_FILE}"
     exec /usr/local/bin/rtl_433 \
