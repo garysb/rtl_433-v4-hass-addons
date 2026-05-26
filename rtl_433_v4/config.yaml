@@ -1,5 +1,5 @@
 name: "RTL_433 v4"
-version: "2.0.0"
+version: "2.1.0"
 slug: "rtl_433_v4"
 description: "rtl_433 built against current rtl-sdr-blog librtlsdr (proper RTL-SDR Blog v4 support). Publishes to MQTT for pbkhrv autodiscovery to surface as HA entities."
 arch:
@@ -15,6 +15,8 @@ homeassistant_api: false
 host_network: false
 options:
   frequency: "433.92M"
+  frequencies: []
+  hop_interval: 60
   gain: 0
   mqtt_host: "core-mosquitto"
   mqtt_port: 1883
@@ -24,7 +26,10 @@ options:
   extra_args: ""
 schema:
   frequency: "str"
-  gain: "int(0,496)"
+  frequencies:
+    - "str"
+  hop_interval: "int(1,3600)"
+  gain: "int(0,49)"
   mqtt_host: "str"
   mqtt_port: "port"
   mqtt_user: "str"
