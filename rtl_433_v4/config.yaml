@@ -1,29 +1,33 @@
-name: rtl_433 v4
-version: "1.0.16"
-slug: rtl_433_v4
-description: rtl_433 built with the rtl-sdr-blog librtlsdr fork for RTL-SDR Blog v4 dongle support
-url: https://github.com/garysb/rtl_433-v4-hass-addons
+name: "RTL_433 v4"
+version: "2.0.0"
+slug: "rtl_433_v4"
+description: "rtl_433 built against current rtl-sdr-blog librtlsdr (proper RTL-SDR Blog v4 support). Publishes to MQTT for pbkhrv autodiscovery to surface as HA entities."
 arch:
   - aarch64
-init: false
-hassio_api: true
+url: "https://github.com/garysb/rtl_433-v4-hass-addons"
+startup: services
 boot: auto
-startup: application
+init: false
 usb: true
 udev: true
-host_dbus: true
-devices:
-  - /dev/bus/usb
-privileged:
-  - SYS_ADMIN
-services:
-  - mqtt:need
-map:
-  - share:rw
-  - config:rw
+hassio_api: true
+homeassistant_api: false
+host_network: false
 options:
-  rtl_433_conf_file: ""
-  retain: true
+  frequency: "433.92M"
+  gain: 0
+  mqtt_host: "core-mosquitto"
+  mqtt_port: 1883
+  mqtt_user: "mqtt"
+  mqtt_pass: ""
+  pulse_detect: "autolevel"
+  extra_args: ""
 schema:
-  rtl_433_conf_file: str?
-  retain: bool
+  frequency: "str"
+  gain: "int(0,496)"
+  mqtt_host: "str"
+  mqtt_port: "port"
+  mqtt_user: "str"
+  mqtt_pass: "password"
+  pulse_detect: "list(autolevel|minmax|magest)"
+  extra_args: "str?"

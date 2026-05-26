@@ -1,0 +1,7 @@
+build_from:
+  aarch64: ghcr.io/home-assistant/aarch64-base:3.19
+labels:
+  org.opencontainers.image.title: "RTL_433 v4 add-on"
+  org.opencontainers.image.description: "rtl_433 + current rtl-sdr-blog librtlsdr for RTL-SDR Blog v4"
+  org.opencontainers.image.source: "https://github.com/garysb/rtl_433-v4-hass-addons"
+  org.opencontainers.image.licenses: "GPL-2.0-or-later"
